@@ -10,3 +10,4 @@ Includes:
 * CakeROP entry point
 * CakeBrah (Homebrew Launcher) entry point
 * 2xrsa entry point
+# NTR_ArbitraryCommand
