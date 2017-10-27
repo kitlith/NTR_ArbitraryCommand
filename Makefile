@@ -18,7 +18,7 @@ include $(DEVKITARM)/ds_rules
 #---------------------------------------------------------------------------------
 export TARGET	:=	HelloEntryPoint
 BUILD		:=	build
-SOURCES		:=	source
+SOURCES		:=	source source/gamecart
 DATA		:=	data
 INCLUDES	:=	source
 

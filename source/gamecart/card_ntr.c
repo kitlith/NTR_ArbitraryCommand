@@ -34,7 +34,7 @@ void cardWriteCommand(const u8 *command) {
 	REG_AUXSPICNT = CARD_CR1_ENABLE | CARD_CR1_IRQ;
 
 	for (index = 0; index < 8; index++) {
-		CARD_COMMAND[7-index] = command[index];
+		CARD_COMMAND[index] = command[index];
 	}
 }
 

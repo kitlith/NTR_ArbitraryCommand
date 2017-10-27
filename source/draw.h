@@ -15,6 +15,7 @@
 
 #define COLOR_BLACK         RGB(0x00, 0x00, 0x00)
 #define COLOR_WHITE         RGB(0xFF, 0xFF, 0xFF)
+#define COLOR_RED           RGB(0xFF, 0x00, 0x00)
 #define COLOR_TRANSPARENT   RGB(0xFF, 0x00, 0xEF) // otherwise known as 'super fuchsia'
 
 #define STD_COLOR_BG   COLOR_BLACK
