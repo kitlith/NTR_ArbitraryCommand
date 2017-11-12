@@ -26,10 +26,12 @@ struct menu_item {
 
 void arbitrary_menu(void);
 void serial_menu(void);
+void gps_menu(void);
 
 static const struct menu_item main_menu[] = {
     {.name = "Arbitrary Commands", .func = arbitrary_menu},
     {.name = "Serial Recieve", .func = serial_menu},
+    {.name = "GPS Recieve", .func = gps_menu},
 };
 
 static const unsigned menu_length = sizeof(main_menu)/sizeof(main_menu[0]);

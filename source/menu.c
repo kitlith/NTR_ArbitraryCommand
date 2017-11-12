@@ -2,6 +2,7 @@
 #include "hid.h"
 #include "i2c.h"
 #include "ntrcard.h"
+#include "../minmea/minmea.h"
 
 void arbitrary_menu(void) {
     char clear_text[64] = { 0 };
@@ -64,13 +65,63 @@ void serial_menu(void) {
         cardPolledTransfer(CARD_ACTIVATE | CARD_BLK_SIZE(7), (uint32_t *)result, 4, cmdReadSerial);
         // bool data_present = result[0] & 1;
         uint8_t data = result[3];
-        if (data != 0x00 && data != 0xFF) {
-            if (data == '\n' || data == '\r') {
-                ++lineno;
-                charno = 1;
-                continue;
+        if (data == 0x00 || data == 0xFF) continue;
+
+        if (data == '\n' || data == '\r') {
+            ++lineno;
+            charno = 1;
+            continue;
+        }
+        DrawCharacter(TOP_SCREEN, data, charno++ * 10, lineno * 10, STD_COLOR_FONT, STD_COLOR_BG);
+
+    }
+}
+
+void gps_menu(void) {
+    char sentence[MINMEA_MAX_LENGTH];
+    int sentence_pos = -1;
+    while (true) {
+        if (CheckButton(BUTTON_B))
+            break;
+
+        uint8_t result[4];
+        cardPolledTransfer(CARD_ACTIVATE | CARD_BLK_SIZE(7), (uint32_t *)result, 4, cmdReadSerial);
+        char data = result[3];
+        if (data == 0x00 || data == 0xFF) continue;
+
+        if (data == '$' && sentence_pos < 0) sentence_pos = 0;
+        if (sentence_pos >= 0) {
+            sentence[sentence_pos++] = data;
+            if (data == '\n') {
+                sentence[sentence_pos] = '\0';
+                sentence_pos = -1;
+                if (!minmea_check(sentence, false)) continue;
+
+                switch (minmea_sentence_id(sentence, false)) {
+                    case MINMEA_SENTENCE_RMC: {
+                        struct minmea_sentence_rmc frame;
+                        if (minmea_parse_rmc(&frame, sentence)) {
+                            DrawStringF(10, 10, true, "Latitude: %f", minmea_tocoord(&frame.latitude));
+                            DrawStringF(10, 20, true, "Longitude: %f", minmea_tocoord(&frame.longitude));
+                            DrawStringF(10, 30, true, "Speed: %f", minmea_tofloat(&frame.speed));
+
+                            DrawStringF(10, 60, true, "Valid: %s", frame.valid ? "Yes" : "No");
+                        }
+                    } break;
+
+                    case MINMEA_SENTENCE_GGA: {
+                        struct minmea_sentence_gga frame;
+                        if (minmea_parse_gga(&frame, sentence)) {
+                            DrawStringF(10, 40, true, "Altitude: %f %c, Height: %f %c",
+                                minmea_tofloat(&frame.altitude), frame.altitude_units,
+                                minmea_tofloat(&frame.height), frame.height_units);
+                        }
+                    } break;
+                    case MINMEA_SENTENCE_GSA:
+                    case MINMEA_SENTENCE_VTG:
+                    default: break;
+                }
             }
-            DrawCharacter(TOP_SCREEN, data, charno++ * 10, lineno * 10, STD_COLOR_FONT, STD_COLOR_BG);
         }
     }
 }
