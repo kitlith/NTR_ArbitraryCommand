@@ -78,8 +78,8 @@ void serial_menu(void) {
 }
 
 void gps_menu(void) {
-    char sentence[MINMEA_MAX_LENGTH];
-    int sentence_pos = -1;
+    char sentence[0x200];
+    int sentence_pos = 0;
     while (true) {
         if (CheckButton(BUTTON_B))
             break;
@@ -89,39 +89,47 @@ void gps_menu(void) {
         char data = result[3];
         if (data == 0x00 || data == 0xFF) continue;
 
-        if (data == '$' && sentence_pos < 0) sentence_pos = 0;
-        if (sentence_pos >= 0) {
-            sentence[sentence_pos++] = data;
-            if (data == '\n') {
-                sentence[sentence_pos] = '\0';
-                sentence_pos = -1;
-                if (!minmea_check(sentence, false)) continue;
-
-                switch (minmea_sentence_id(sentence, false)) {
-                    case MINMEA_SENTENCE_RMC: {
-                        struct minmea_sentence_rmc frame;
-                        if (minmea_parse_rmc(&frame, sentence)) {
-                            DrawStringF(10, 10, true, "Latitude: %f", minmea_tocoord(&frame.latitude));
-                            DrawStringF(10, 20, true, "Longitude: %f", minmea_tocoord(&frame.longitude));
-                            DrawStringF(10, 30, true, "Speed: %f", minmea_tofloat(&frame.speed));
-
-                            DrawStringF(10, 60, true, "Valid: %s", frame.valid ? "Yes" : "No");
-                        }
-                    } break;
-
-                    case MINMEA_SENTENCE_GGA: {
-                        struct minmea_sentence_gga frame;
-                        if (minmea_parse_gga(&frame, sentence)) {
-                            DrawStringF(10, 40, true, "Altitude: %f %c, Height: %f %c",
-                                minmea_tofloat(&frame.altitude), frame.altitude_units,
-                                minmea_tofloat(&frame.height), frame.height_units);
-                        }
-                    } break;
-                    case MINMEA_SENTENCE_GSA:
-                    case MINMEA_SENTENCE_VTG:
-                    default: break;
-                }
-            }
+        sentence[sentence_pos++] = data;
+        if (sentence_pos >= 0x200) {
+            sentence_pos = 0; // Avoid stack overflow.
+            continue;
         }
+
+        if (data == '\n') {
+            sentence[sentence_pos] = '\0';
+            sentence_pos = 0;
+
+            switch (minmea_sentence_id(sentence, false)) {
+                case MINMEA_SENTENCE_RMC: {
+                    struct minmea_sentence_rmc frame;
+                    if (minmea_parse_rmc(&frame, sentence)) {
+                        float speed = (float)frame.speed.value; // (float)frame.speed.scale; //minmea_tofloat(&frame.speed);
+                        // float latitude = minmea_tocoord(&frame.latitude);
+                        // DrawStringF(10, 10, true, "Latitude: %f", minmea_tocoord(&frame.latitude));
+                        // DrawStringF(10, 20, true, "Longitude: %f", minmea_tocoord(&frame.longitude));
+                        DrawStringF(10, 30, true, "Speed: %f", speed);
+                        //
+                        // DrawStringF(10, 60, true, "Valid: %s", frame.valid ? "Yes" : "No");
+                    }
+                } break;
+
+                case MINMEA_SENTENCE_GGA: {
+                    struct minmea_sentence_gga frame;
+                    if (minmea_parse_gga(&frame, sentence)) {
+                        // float altitude = minmea_tofloat(&frame.altitude);
+                        // float height = minmea_tofloat(&frame.height);
+                        // DrawStringF(10, 40, true, "Altitude: %f %c, Height: %f %c",
+                        //     altitude, frame.altitude_units,
+                        //     height, frame.height_units);
+                    }
+                } break;
+                case MINMEA_SENTENCE_GSA:
+                case MINMEA_SENTENCE_VTG:
+                default: break;
+            }
+
+            DrawStringF(10,70,true, "Sentence recieved!");
+        }
+
     }
 }
