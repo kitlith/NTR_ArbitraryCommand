@@ -77,8 +77,85 @@ void serial_menu(void) {
     }
 }
 
+static int normalize(double *val) {
+    int exponent = 0;
+    double value = *val;
+
+    while (value >= 1.0) {
+        value /= 10.0;
+        ++exponent;
+    }
+
+    while (value < 0.1) {
+        value *= 10.0;
+        --exponent;
+    }
+    *val = value;
+    return exponent;
+}
+
+static char *ftoa_fixed(char *buffer, double value) {
+    /* carry out a fixed conversion of a double value to a string, with a precision of 5 decimal digits.
+     * Values with absolute values less than 0.000001 are rounded to 0.0
+     * Note: this blindly assumes that the buffer will be large enough to hold the largest possible result.
+     * The largest value we expect is an IEEE 754 double precision real, with maximum magnitude of approximately
+     * e+308. The C standard requires an implementation to allow a single conversion to produce up to 512
+     * characters, so that's what we really expect as the buffer size.
+     */
+
+    char *ret = buffer;
+
+    int exponent = 0;
+    int places = 0;
+    static const int width = 4;
+
+    if (value == 0.0) {
+        buffer[0] = '0';
+        buffer[1] = '\0';
+        return ret;
+    }
+
+    if (value < 0.0) {
+        *buffer++ = '-';
+        value = -value;
+    }
+
+    exponent = normalize(&value);
+
+    while (exponent > 0) {
+        int digit = value * 10;
+        *buffer++ = digit + '0';
+        value = value * 10 - digit;
+        ++places;
+        --exponent;
+    }
+
+    if (places == 0)
+        *buffer++ = '0';
+
+    *buffer++ = '.';
+
+    while (exponent < 0 && places < width) {
+        *buffer++ = '0';
+        --exponent;
+        ++places;
+    }
+
+    while (places < width) {
+        int digit = value * 10.0;
+        *buffer++ = digit + '0';
+        value = value * 10.0 - digit;
+        ++places;
+    }
+    *buffer = '\0';
+
+    return ret;
+}
+
 void gps_menu(void) {
     char sentence[0x200];
+    char float1[0x200];
+    char float2[0x200];
     int sentence_pos = 0;
     while (true) {
         if (CheckButton(BUTTON_B))
@@ -103,24 +180,20 @@ void gps_menu(void) {
                 case MINMEA_SENTENCE_RMC: {
                     struct minmea_sentence_rmc frame;
                     if (minmea_parse_rmc(&frame, sentence)) {
-                        float speed = (float)frame.speed.value; // (float)frame.speed.scale; //minmea_tofloat(&frame.speed);
-                        // float latitude = minmea_tocoord(&frame.latitude);
-                        // DrawStringF(10, 10, true, "Latitude: %f", minmea_tocoord(&frame.latitude));
-                        // DrawStringF(10, 20, true, "Longitude: %f", minmea_tocoord(&frame.longitude));
-                        DrawStringF(10, 30, true, "Speed: %f", speed);
-                        //
-                        // DrawStringF(10, 60, true, "Valid: %s", frame.valid ? "Yes" : "No");
+                        DrawStringF(10, 10, true, "Latitude: %s", ftoa_fixed(float1, minmea_tocoord(&frame.latitude)));
+                        DrawStringF(10, 20, true, "Longitude: %s", ftoa_fixed(float1, minmea_tocoord(&frame.longitude)));
+                        DrawStringF(10, 30, true, "Speed: %s", ftoa_fixed(float1, minmea_tofloat(&frame.speed)));
+
+                        DrawStringF(10, 60, true, "Valid: %s", frame.valid ? "Yes" : "No");
                     }
                 } break;
 
                 case MINMEA_SENTENCE_GGA: {
                     struct minmea_sentence_gga frame;
                     if (minmea_parse_gga(&frame, sentence)) {
-                        // float altitude = minmea_tofloat(&frame.altitude);
-                        // float height = minmea_tofloat(&frame.height);
-                        // DrawStringF(10, 40, true, "Altitude: %f %c, Height: %f %c",
-                        //     altitude, frame.altitude_units,
-                        //     height, frame.height_units);
+                        DrawStringF(10, 40, true, "Altitude: %s %c, Height: %s %c",
+                            ftoa_fixed(float1, minmea_tofloat(&frame.altitude)), frame.altitude_units,
+                            ftoa_fixed(float2, minmea_tofloat(&frame.height)), frame.height_units);
                     }
                 } break;
                 case MINMEA_SENTENCE_GSA:
