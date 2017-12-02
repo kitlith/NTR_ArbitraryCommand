@@ -159,7 +159,13 @@ _skip_gw:
     mov r1, #0x340
     str r1, [r0]
 
+    @ Setup stack
     ldr sp, =0x23F00000
+
+    @ Setup heap
+    ldr r0, =fake_heap_end
+    ldr r1, =0x28000000
+    str r1, [r0]
 
     mov r0, r9
     mov r1, r10
